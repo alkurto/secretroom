@@ -14,6 +14,7 @@
             background-color: black;
         }
 
+        /* Задний фон виден сразу */
         #scene {
             width: 100%;
             height: 100%;
@@ -25,6 +26,7 @@
             display: block;
         }
 
+        /* Циферблат */
         #clock-display {
             position: absolute;
             bottom: 29.5%; 
@@ -44,6 +46,10 @@
             letter-spacing: -1px;
             white-space: nowrap;
             opacity: 0.95;
+        }
+
+        /* Анимация пульсации (добавим её позже через JS) */
+        .active-clock {
             animation: pulse 0.1s infinite alternate;
         }
 
@@ -52,12 +58,56 @@
             to { opacity: 1; text-shadow: 0 0 18px rgba(255, 0, 0, 1), 0 0 3px white; }
         }
 
-        #overlay {
+        /* Стартовый экран поверх всего */
+        #boot-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            background: rgba(0, 0, 0, 0.6); /* Полупрозрачный, чтобы видеть фон */
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: 0.5s;
+        }
+
+        #start-btn {
+            padding: 20px 40px;
+            background: transparent;
+            color: #ff0000;
+            border: 2px solid #ff0000;
+            font-family: 'Impact', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 3px;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+            transition: 0.3s;
+        }
+
+        #start-btn:hover {
+            background: #ff0000;
+            color: black;
+            box-shadow: 0 0 30px #ff0000;
+        }
+
+        /* Эффект глитча при активации */
+        .glitch-flash {
+            animation: flash 0.2s steps(2) infinite;
+        }
+
+        @keyframes flash {
+            0% { background: white; opacity: 0.8; transform: translate(5px, -5px); }
+            50% { background: red; opacity: 0.5; transform: translate(-5px, 5px); }
+            100% { background: transparent; }
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
             background-color: black;
             display: none; 
             justify-content: center;
@@ -71,7 +121,7 @@
             text-transform: uppercase;
             font-size: 4rem;
             padding: 40px;
-            word-wrap: break-word;
+            word-wrap: break-word; 
             max-width: 90%;
         }
 
@@ -88,8 +138,12 @@
         <source src="fon.mp3" type="audio/mpeg">
     </audio>
 
+    <div id="boot-overlay">
+        <button id="start-btn">ENABLE SYSTEM CLOCK</button>
+    </div>
+
     <div id="scene">
-        <div id="clock-display">88:88</div>
+        <div id="clock-display">--:--</div>
     </div>
 
     <div id="overlay">
@@ -102,17 +156,26 @@
         const overlay = document.getElementById('overlay');
         const messageDisplay = document.getElementById('message');
         const audio = document.getElementById('bgMusic');
-        
-        // Автозапуск музыки при первом клике пользователя
-        function startAudio() {
-            audio.play().catch(err => console.log("Браузер ожидает клика..."));
-            document.removeEventListener('mousedown', startAudio);
-            document.removeEventListener('touchstart', startAudio);
-            document.removeEventListener('keydown', startAudio);
-        }
-        document.addEventListener('mousedown', startAudio);
-        document.addEventListener('touchstart', startAudio);
-        document.addEventListener('keydown', startAudio);
+        const bootOverlay = document.getElementById('boot-overlay');
+        const startBtn = document.getElementById('start-btn');
+
+        let isSystemActive = false;
+
+        startBtn.addEventListener('click', () => {
+            // Создаем глитч эффект
+            bootOverlay.classList.add('glitch-flash');
+            startBtn.style.display = 'none';
+
+            setTimeout(() => {
+                bootOverlay.style.display = 'none';
+                audio.play();
+                isSystemActive = true;
+                clockDisplay.classList.add('active-clock');
+                
+                // Запускаем скримеры через 5 секунд после включения
+                setTimeout(showScaryEvent, 5000);
+            }, 600); // Длительность глитча
+        });
 
         const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const phrases = [
@@ -124,7 +187,10 @@
             "nz1Tay2nf13fpTGYTpzVfnQ+QGZIDdlMFZ/f9eF5mD9dj8PiAYC4UReMqSkQU9qHupRxUCfnlC5B16pnuGjifg=="
         ];
 
+        // Генерация кода на часах (только если система активна)
         setInterval(() => {
+            if (!isSystemActive) return;
+
             let res = "";
             for (let i = 0; i < 4; i++) {
                 res += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -134,6 +200,8 @@
         }, 120);
 
         function showScaryEvent() {
+            if (!isSystemActive) return;
+
             const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
             const randomStyle = "font-style-" + Math.floor(Math.random() * 5);
 
@@ -157,8 +225,8 @@
             }, 5000);
         }
 
+        // Интервал появления скримеров
         setInterval(showScaryEvent, 60000);
-        setTimeout(showScaryEvent, 5000);
     </script>
 </body>
 </html>

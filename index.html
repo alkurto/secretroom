@@ -16,14 +16,16 @@
             background-image: url('background.png'); 
             background-size: cover; background-position: center;
             position: absolute; top: 0; left: 0;
+            /* Плавный переход для зума */
             transition: transform 60s linear, filter 0.5s ease; 
             transform-origin: 75% 65%;
             z-index: 1;
         }
 
-        .zoom-to-clock {
+        /* Быстрый зум при клике на часы */
+        .fast-zoom {
             transition: transform 2s ease-in-out !important;
-            transform: scale(5) translate(-10%, -10%);
+            transform: scale(5) translate(-10%, -10%) !important;
             filter: brightness(0.2);
         }
 
@@ -32,17 +34,25 @@
             bottom: 29.5%; right: 22.5%; width: 22%; height: 10%;    
             display: flex; justify-content: center; align-items: center;
             font-family: 'Arial Narrow', 'Impact', sans-serif; 
-            color: #ff0000; font-weight: 900; font-size: 5.5vw; 
+            color: #ff0000; font-weight: 900; font-size: 4.5vw; 
             text-shadow: 0 0 12px rgba(255, 0, 0, 1);
             transform: skewX(-10deg) rotate(-0.5deg); 
             cursor: pointer;
             z-index: 10;
+            text-align: center;
         }
 
         .active-clock { animation: pulse 0.1s infinite alternate; }
         @keyframes pulse {
             from { opacity: 0.8; text-shadow: 0 0 10px red; }
             to { opacity: 1; text-shadow: 0 0 20px red; }
+        }
+
+        /* Стиль для чисел кода на часах */
+        .final-code-style {
+            font-size: 1.8vw !important;
+            line-height: 0.8;
+            letter-spacing: 1px;
         }
 
         #interrogation-overlay {
@@ -61,7 +71,6 @@
             margin-bottom: 30px;
             background: rgba(0, 0, 0, 0.7);
             padding: 15px 25px;
-            border-radius: 5px;
             max-width: 70%;
         }
 
@@ -71,15 +80,12 @@
             padding: 12px 45px; background: rgba(0,0,0,0.8);
             font-family: 'Courier New', monospace; font-size: 1.6rem;
             text-transform: uppercase; cursor: pointer;
-            transition: all 0.3s; border: 1px solid white;
+            border: 1px solid white;
         }
 
         #btn-no { color: #ff4444; border-color: #ff4444; }
-        #btn-no:hover { background: #ff4444; color: black; }
         #btn-yes { color: #44ff44; border-color: #44ff44; }
-        #btn-yes:hover { background: #44ff44; color: black; }
 
-        /* Оверлей смерти (черный экран с кодом) */
         #death-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: black; display: none; justify-content: center;
@@ -133,6 +139,7 @@
     <script>
         const clockSpans = [document.getElementById('c1'), document.getElementById('c2'), document.getElementById('c3'), document.getElementById('c4')];
         const clockContainer = document.getElementById('clock-display');
+        const clockTextWrapper = document.getElementById('clock-text');
         const audioFone = document.getElementById('bgMusic');
         const audioDp = document.getElementById('interrogationMusic');
         const noise = document.getElementById('noise-overlay');
@@ -143,7 +150,10 @@
         
         let activeIndices = [];
         let interrogationStep = 0;
-        let autoReloadTimer; // Переменная для хранения таймера смерти
+        let isCodeOnClock = false;
+        
+        // Таймеры
+        let timerCodeOnClock, timerDeathScreen, timerReload;
 
         function flash() {
             noise.style.display = 'block';
@@ -154,7 +164,10 @@
             document.getElementById('boot-overlay').style.display = 'none';
             audioFone.play();
             
-            // Запуск цифр
+            // 1. Медленный зум (на 60 секунд)
+            scene.style.transform = 'scale(4)';
+
+            // Активация цифр
             [0, 2, 1, 3].forEach((pos, i) => {
                 setTimeout(() => {
                     activeIndices.push(pos);
@@ -162,31 +175,42 @@
                 }, i * 400);
             });
 
-            // Таймер смерти: через 17 секунд показываем экран
-            autoReloadTimer = setTimeout(() => {
+            // 2. Через 15 секунд — числа на часах
+            timerCodeOnClock = setTimeout(() => {
+                isCodeOnClock = true;
+                clockTextWrapper.classList.add('final-code-style');
+                clockTextWrapper.innerHTML = "6-9-14-1-12<br>12-9-22-5";
+            }, 15000);
+
+            // 3. Через 17 секунд — экран смерти
+            timerDeathScreen = setTimeout(() => {
                 deathOverlay.style.display = 'flex';
-                // Через 3 секунды после экрана — перезагрузка
-                setTimeout(() => location.reload(), 3000);
+                timerReload = setTimeout(() => location.reload(), 3000);
             }, 17000);
         };
 
         // Глитч эффект
         setInterval(() => {
+            if (isCodeOnClock) return; // Остановить глитч, если код показан
             const chars = "0123456789";
             activeIndices.forEach(idx => {
                 clockSpans[idx].innerText = chars.charAt(Math.floor(Math.random() * chars.length));
             });
         }, 120);
 
-        // Переход в допрос
+        // Клик на часы
         clockContainer.onclick = () => {
             if (activeIndices.length < 4) return;
 
-            // !!! ГЛАВНОЕ: Отменяем таймер перезагрузки !!!
-            clearTimeout(autoReloadTimer);
+            // ОТМЕНА ВСЕХ ТАЙМЕРОВ СМЕРТИ
+            clearTimeout(timerCodeOnClock);
+            clearTimeout(timerDeathScreen);
+            clearTimeout(timerReload);
 
-            scene.classList.add('zoom-to-clock');
+            // Резкий зум перед переходом
+            scene.classList.add('fast-zoom');
             flash();
+
             setTimeout(() => {
                 audioFone.pause();
                 audioDp.play();

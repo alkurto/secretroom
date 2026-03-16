@@ -15,6 +15,13 @@
             background-image: url('background.png'); 
             background-size: cover; background-position: center;
             position: relative; display: block;
+            /* Камера движется очень медленно — 60 секунд */
+            transition: transform 60s linear; 
+            transform-origin: 75% 65%; 
+        }
+
+        .zoom-active {
+            transform: scale(4);
         }
 
         #clock-display {
@@ -27,6 +34,14 @@
             text-shadow: 0 0 12px rgba(255, 0, 0, 1);
             transform: skewX(-10deg) rotate(-0.5deg); 
             letter-spacing: 5px; opacity: 0.95;
+            text-align: center;
+        }
+
+        /* Минимальное расстояние между строками кода */
+        .final-code {
+            font-size: 2.2vw; 
+            line-height: 0.65; /* Еще плотнее */
+            letter-spacing: 1px;
         }
 
         .active-clock { animation: pulse 0.1s infinite alternate; }
@@ -36,11 +51,10 @@
             to { opacity: 1; text-shadow: 0 0 18px red, 0 0 3px white; }
         }
 
-        /* ЭФФЕКТ БЕЛОГО ШУМА */
         #noise-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 10000; display: none; pointer-events: none;
-            background: url('https://media.giphy.com/media/oEI9uWU0EB9LpL6SAs/giphy.gif'); /* Ссылка на гифку шума */
+            background: url('https://media.giphy.com/media/oEI9uWU0EB9LpL6SAs/giphy.gif');
             opacity: 0.3;
         }
 
@@ -60,16 +74,21 @@
         #overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: black; display: none; justify-content: center;
-            align-items: center; z-index: 999; text-align: center;
+            align-items: center; z-index: 9999; text-align: center;
         }
 
-        .scary-text { color: white; font-size: 4rem; text-transform: uppercase; }
+        .scary-text { 
+            color: white; 
+            font-family: 'Courier New', monospace; 
+            font-size: 5vw; 
+            letter-spacing: 10px;
+        }
     </style>
 </head>
 <body>
 
     <audio id="bgMusic" loop>
-        <source src="fon.mp3" type="audio/mpeg">
+        <source src="fone.mp3" type="audio/mpeg">
     </audio>
 
     <div id="noise-overlay"></div>
@@ -79,7 +98,9 @@
     </div>
 
     <div id="scene">
-        <div id="clock-display"><span id="c1">-</span><span id="c2">-</span>:<span id="c3">-</span><span id="c4">-</span></div>
+        <div id="clock-display">
+            <div id="clock-text"><span id="c1">-</span><span id="c2">-</span>:<span id="c3">-</span><span id="c4">-</span></div>
+        </div>
     </div>
 
     <div id="overlay">
@@ -88,68 +109,73 @@
 
     <script>
         const clockSpans = [
-            document.getElementById('c1'),
-            document.getElementById('c2'),
-            document.getElementById('c3'),
-            document.getElementById('c4')
+            document.getElementById('c1'), document.getElementById('c2'),
+            document.getElementById('c3'), document.getElementById('c4')
         ];
+        const clockContainer = document.getElementById('clock-display');
+        const clockText = document.getElementById('clock-text');
         const audio = document.getElementById('bgMusic');
         const bootOverlay = document.getElementById('boot-overlay');
         const noise = document.getElementById('noise-overlay');
-        const clockContainer = document.getElementById('clock-display');
+        const scene = document.getElementById('scene');
+        const overlay = document.getElementById('overlay');
+        const message = document.getElementById('message');
         
-        let isSystemActive = false;
-        let activeIndices = []; // Индексы цифр, которые уже «проснулись»
+        let activeIndices = [];
+        let isCodeTime = false;
+        
+        const codeDigitsHtml = "6-9-14-1-12<br>12-9-22-5";
+        const codeDigitsPlain = "6-9-14-1-12 12-9-22-5";
 
         document.getElementById('start-btn').addEventListener('click', () => {
-            // 1. Показываем белый шум
             noise.style.display = 'block';
             
             setTimeout(() => {
-                // 2. Убираем шум и оверлей, запускаем музыку
                 noise.style.display = 'none';
                 bootOverlay.style.display = 'none';
                 audio.play();
                 
-                // 3. Появление цифр в порядке: 1, 3, 2, 4
-                // Индексы массива: 0 (первая), 2 (третья), 1 (вторая), 3 (четвертая)
+                scene.classList.add('zoom-active');
+
                 const order = [0, 2, 1, 3];
                 order.forEach((pos, i) => {
                     setTimeout(() => {
                         activeIndices.push(pos);
                         if (activeIndices.length === 4) {
-                            isSystemActive = true;
                             clockContainer.classList.add('active-clock');
                         }
-                    }, i * 400); // Интервал появления каждой цифры
+                    }, i * 400);
                 });
-            }, 500); // Длительность белого шума
+
+                // 15 сек: Код на циферблате
+                setTimeout(() => {
+                    isCodeTime = true;
+                    clockText.classList.add('final-code');
+                    clockText.innerHTML = codeDigitsHtml;
+                }, 15000);
+
+                // 17 сек: Появление черного экрана
+                setTimeout(() => {
+                    message.innerText = codeDigitsPlain;
+                    overlay.style.display = "flex";
+                    
+                    // Перезагрузка ЧЕРЕЗ 3 СЕКУНДЫ ПОСЛЕ появления экрана (итого 20 сек от старта)
+                    setTimeout(() => {
+                        location.reload();
+                    }, 3000);
+
+                }, 17000);
+
+            }, 500);
         });
 
         const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        
-        // Цикл обновления цифр
         setInterval(() => {
-            // Обновляем только те цифры, которые уже «активированы»
+            if (isCodeTime) return;
             activeIndices.forEach(idx => {
                 clockSpans[idx].innerText = chars.charAt(Math.floor(Math.random() * chars.length));
             });
         }, 120);
-
-        // Функция скримеров (сокращенная версия для чистоты кода)
-        function showScaryEvent() {
-            if (!isSystemActive) return;
-            const phrases = ["RUN", "I'M WATCHING", "SYSTEM ERROR"];
-            document.getElementById('message').innerText = phrases[Math.floor(Math.random() * phrases.length)];
-            document.getElementById('scene').style.display = "none";
-            document.getElementById('overlay').style.display = "flex";
-            setTimeout(() => {
-                document.getElementById('overlay').style.display = "none";
-                document.getElementById('scene').style.display = "block";
-            }, 3000);
-        }
-
-        setInterval(showScaryEvent, 60000);
     </script>
 </body>
 </html>
